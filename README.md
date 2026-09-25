@@ -24,7 +24,7 @@ style.css        tokens, layout, responsivo
 script.js        8 blocos: reveal, nav ativa, detecção de mídia, lightbox,
                  terminal, tema, grade do hero e animações por scroll
 verificar.html   mostra quais arquivos de mídia já estão no lugar
-.gitignore       deixa as gravações originais e o .claude/ fora do repositório
+.gitignore       deixa as gravações originais fora do repositório
 assets/          currículo, foto e projetos/ (prints + vídeos)
 docs/            documentação
 ```
