@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificar prints — Portfólio</title>
+<style>
+  :root { --bg:#0B0E14; --surface:#141922; --line:#242B38; --text:#E6EAF2;
+          --muted:#8B95A7; --accent:#38BDF8; --ok:#34D399; --miss:#FBBF24; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:2.5rem 20px; background:var(--bg); color:var(--text);
+         font:16px/1.6 "Inter",-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin-inline:auto; }
+  h1 { font-size:1.6rem; letter-spacing:-.02em; margin:0 0 .4rem; }
+  p.sub { color:var(--muted); margin:0 0 2rem; font-size:.94rem; }
+  #resumo { padding:1.1rem 1.3rem; border:1px solid var(--line); border-radius:12px;
+            background:var(--surface); margin-bottom:1.4rem; font-weight:600; }
+  ul { list-style:none; margin:0; padding:0; }
+  li { display:flex; align-items:center; gap:.8rem; padding:.75rem .3rem;
+       border-top:1px solid var(--line); font-size:.92rem; }
+  li:first-child { border-top:0; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .has .dot { background:var(--ok); }
+  .no  .dot { background:var(--miss); }
+  code { font-family:ui-monospace,Consolas,monospace; font-size:.86rem; }
+  .has code { color:var(--text); }
+  .no  code { color:var(--muted); }
+  .what { margin-left:auto; color:var(--muted); font-size:.84rem; text-align:right; }
+  .nota { margin-top:2rem; padding:1rem 1.2rem; border:1px solid var(--line);
+          border-radius:12px; color:var(--muted); font-size:.88rem; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Verificar prints</h1>
+  <p class="sub">
+    Abra este arquivo depois de salvar as capturas em <code>assets/projetos/</code>.
+    Ele diz quais o site já está exibindo e quais ainda estão como placeholder.
+  </p>
+
+  <div id="resumo">Verificando…</div>
+  <ul id="lista"></ul>
+
+  <p class="nota">
+    Amarelo não é erro: o site funciona normalmente e mostra um placeholder com o nome
+    do módulo no lugar. Se um print que você salvou aparece como ausente, o nome do
+    arquivo está diferente do esperado — renomeie exatamente como listado acima.
+    Depois é só recarregar <a href="index.html">index.html</a>.
+  </p>
+</main>
+
+<script>
+// Mesma lista que index.html referencia. Se mudar lá, mude aqui.
+// tipo: 'img' | 'video'; caminho é relativo à raiz do site.
+const SLOTS = [
+  ['img',   'assets/foto-vinicius.jpg',               'Hero — sua foto'],
+  ['img',   'assets/projetos/wida-01-producao.png',      'Wida — Motor de dados (SQL)'],
+  ['video', 'assets/projetos/wida-02-financeiro.mp4',    'Wida — RH e Ponto'],
+  ['img',   'assets/projetos/wida-03-produtividade.png', 'Wida — Produtividade'],
+  ['img',   'assets/projetos/wida-04-comercial.png',     'Wida — Comercial'],
+  ['img',   'assets/projetos/wida-05-auditoria.png',     'Wida — Auditoria'],
+  ['img',   'assets/projetos/wida-06-painel-tv.png',     'Wida — Painel TV'],
+  ['video', 'assets/projetos/wida-producao.mp4',         'Wida — produção e aparas'],
+  ['video', 'assets/projetos/wida-planta.mp4',           'Wida — planta da fábrica'],
+  ['video', 'assets/projetos/wida-powerbi.mp4',          'Wida — Power BI'],
+  ['video', 'assets/projetos/wida-estoque.mp4',          'Wida — estoque no celular'],
+  ['video', 'assets/projetos/vcwb-demo.mp4',             'VCWB — demonstração'],
+  ['video', 'assets/projetos/lifemanager-demo.mp4',      'LifeManager — demonstração'],
+  ['video', 'assets/projetos/sites-demo.mp4',            'Site — navegação'],
+];
+
+// Carrega cada arquivo de verdade: é o mesmo teste que o site faz.
+const existe = (tipo, caminho) => new Promise(res => {
+  if (tipo === 'video') {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.onloadedmetadata = () => res(v.videoWidth > 0);
+    v.onerror = () => res(false);
+    v.src = caminho;
+  } else {
+    const i = new Image();
+    i.onload  = () => res(i.naturalWidth > 0);
+    i.onerror = () => res(false);
+    i.src = caminho;
+  }
+});
+
+Promise.all(SLOTS.map(([t, c]) => existe(t, c))).then(found => {
+  document.getElementById('lista').innerHTML = SLOTS.map(([t, c, nome], i) => `
+    <li class="${found[i] ? 'has' : 'no'}">
+      <span class="dot"></span>
+      <code>${c}</code>
+      <span class="what">${found[i] ? nome : (t === 'video' ? 'ainda sem vídeo' : 'ainda sem imagem')}</span>
+    </li>`).join('');
+
+  const n = found.filter(Boolean).length;
+  document.getElementById('resumo').textContent =
+    n === SLOTS.length ? `Todos os ${SLOTS.length} arquivos estão no lugar.`
+                       : `${n} de ${SLOTS.length} no lugar — ${SLOTS.length - n} ainda como placeholder.`;
+});
+</script>
+</body>
+</html>

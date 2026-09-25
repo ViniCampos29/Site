@@ -1,0 +1,23 @@
+# Gravações originais — fonte das sequências de quadros e dos vídeos já
+# comprimidos em assets/projetos/. Não são servidas pelo site (a única menção
+# a moto_fundoverde.mp4 está dentro de um comentário HTML), somam ~12,6 MB e
+# algumas ainda têm marca d'água, chrome de navegador ou dado não tratado.
+# Se precisar regerar um quadro ou recomprimir, os arquivos continuam na
+# máquina do Vinícius — só não entram no repositório público.
+assets/*.mp4
+
+# Exceção: nenhum .mp4 solto em assets/ é usado hoje. Os vídeos publicados
+# ficam todos em assets/projetos/, que não é afetado pela regra acima.
+
+# Lock de sessão de ferramenta, não é do projeto
+.claude/
+
+# Lixo de sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos temporários de edição
+*.bak
+*.tmp
+*~

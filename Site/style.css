@@ -1,0 +1,1797 @@
+/* ─────────────────────────────────────────────────────────
+   Portfólio — Vinícius de Campos
+   Dark por padrão, com alternância para claro. Sem framework, sem build.
+   Sistema visual documentado em docs/DESIGN.md
+   ───────────────────────────────────────────────────────── */
+
+:root {
+  --bg:        #0B0E14;
+  --bg-alt:    #0F131B;
+  --surface:   #141922;
+  --surface-2: #1B212C;
+  --line:      #242B38;
+  --text:      #E6EAF2;
+  --text-2:    #BAC4D4;  /* corpo secundário — mais legível que --muted em parágrafo */
+  --muted:     #8B95A7;
+  --accent:    #38BDF8;
+  --accent-dk: #0EA5E9;
+  --on-accent: #04121C;  /* texto/ícone sobre fundo sólido --accent */
+  --live:      #34D399;
+  --wip:       #FBBF24;
+
+  /* fundo do terminal — mais escuro que a página, é um aparelho à parte.
+     Fica dark nos dois temas: terminal não muda de cor com o sistema,
+     igual um editor de código. */
+  --term-bg:   #070A0F;
+
+  --wrap: 1100px;
+  --r: 14px;
+  /* saída exponencial: rápido no começo, assenta devagar */
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* mono para metadado — rótulo, número, data, tag. Ideia vinda do
+     joaofortes.dev; ver docs/REFERENCIAS.md */
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+/* ── Tema claro ──────────────────────────────────────────
+   Alternado via [data-theme] no <html>, controlado por script.js.
+   O accent fica mais escuro que no dark: #38BDF8 sobre branco não
+   passa de 2:1 de contraste; #0284C7 passa de 4.6:1. */
+:root[data-theme="light"] {
+  --bg:        #F4F6F9;
+  --bg-alt:    #EAEEF3;
+  --surface:   #FFFFFF;
+  --surface-2: #EEF1F5;
+  --line:      #DDE3EA;
+  --text:      #10141C;
+  --text-2:    #38414F;
+  --muted:     #5B6577;
+  --accent:    #0284C7;
+  --accent-dk: #0369A1;
+  --on-accent: #FFFFFF;
+  --live:      #047857;
+  --wip:       #B45309;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* compensa a nav fixa ao pular por âncora */
+  /* As linhas de tela têm 200vw e sangram para os dois lados. 'clip' as corta
+     sem criar contexto de scroll — 'hidden' aqui quebraria a nav sticky. */
+  overflow-x: clip;
+  /* superfícies do navegador: a barra de rolagem também é do projeto */
+  scrollbar-color: var(--surface-2) var(--bg);
+  scrollbar-width: thin;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  /* 'hidden' aqui computa overflow-y:auto implicitamente (regra de
+     acoplamento do overflow), o que faz o <body> virar seu próprio
+     contexto de rolagem — e isso quebra `position: sticky` de QUALQUER
+     descendente (a lata, o halter, a moto, a própria nav), porque o
+     "grudar" deixa de ser calculado contra a viewport. Mesmo motivo
+     que o comentário em `html` já explicava — só que reincidiu aqui.
+     'clip' corta o sangramento horizontal sem criar esse contexto. */
+  overflow-x: clip;
+}
+
+/* ── Superfícies do navegador ──────────────────────────── */
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border: 2px solid var(--bg);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: #313B4C; }
+
+img { max-width: 100%; display: block; }
+
+a { color: var(--accent); text-decoration: none; }
+
+code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: .88em;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: .1em .38em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.wrap {
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Sistema de ícones ─────────────────────────────────────
+   Dois conjuntos, cada um coerente consigo: traço autoral para
+   interface, marcas oficiais (simple-icons) para tecnologia. */
+.ico-stroke {
+  width: 1.05em; height: 1.05em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ico-brand { width: 16px; height: 16px; flex: none; fill: currentColor; }
+
+/* ── Linhas de tela (padrão do chanhdai.com) ───────────
+   Linha de 1px que sangra além do container e atravessa a viewport
+   inteira, dando o ar de papel técnico. */
+.screen-line-top,
+.screen-line-bottom { position: relative; }
+.screen-line-top::before,
+.screen-line-bottom::after {
+  content: "";
+  position: absolute;
+  left: -100vw;
+  width: 200vw;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.screen-line-top::before { top: 0; }
+.screen-line-bottom::after { bottom: 0; }
+
+/* variante tracejada, para hierarquia mais leve */
+.screen-dashed-bottom { position: relative; }
+.screen-dashed-bottom::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: -100vw;
+  width: 200vw;
+  height: 1px;
+  background-image: linear-gradient(to right, var(--line) 4px, transparent 2px);
+  background-size: 6px 1px;
+  background-repeat: repeat-x;
+  pointer-events: none;
+}
+
+/* listras diagonais — divisor e fundo de placeholder */
+.stripe-divider {
+  position: relative;
+  height: 2rem;
+}
+.stripe-divider::before {
+  content: "";
+  position: absolute;
+  left: -100vw;
+  width: 200vw;
+  height: 100%;
+  background: repeating-linear-gradient(315deg,
+    rgba(36, 43, 56, .56) 0, rgba(36, 43, 56, .56) 1px, transparent 0, transparent 50%);
+  background-size: 10px 10px;
+}
+
+/* sublinhado discreto que firma no hover */
+.link-underline {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+  text-underline-offset: 3px;
+  transition: text-decoration-color .2s;
+}
+.link-underline:hover { text-decoration-color: currentColor; }
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: .8rem 1.2rem;
+  font-weight: 600;
+  z-index: 200;
+}
+.skip:focus { left: 0; }
+
+/* ── NAV ───────────────────────────────────────────────── */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color .3s;
+}
+.nav.stuck { border-bottom-color: var(--line); }
+
+.nav-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 64px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding-block: .5rem;
+}
+.brand span {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dk));
+  color: var(--on-accent);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav-links a {
+  display: block;
+  color: var(--muted);
+  font-size: .92rem;
+  font-weight: 500;
+  padding: .7rem .85rem;   /* alvo >= 44px de altura */
+  border-radius: 8px;
+  transition: color .2s, background .2s;
+}
+.nav-links a:hover { color: var(--text); background: var(--surface); }
+.nav-links a.active { color: var(--accent); }
+
+/* pill de disponibilidade (ref. Dribbble back-end) — absorve a
+   informação que antes ficava no eyebrow acima do h1 */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0;
+  padding: .38rem .75rem .38rem .65rem;
+  border: 1px solid rgba(52, 211, 153, .3);
+  background: rgba(52, 211, 153, .08);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--live);
+  white-space: nowrap;
+}
+
+/* botão de alternância de tema — sol/lua, mesmo traço do resto
+   dos ícones de interface (.ico-stroke) */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 38px; height: 38px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.theme-toggle .ico-stroke { width: 17px; height: 17px; }
+/* só um dos dois ícones aparece por vez, conforme o tema atual */
+.theme-toggle .i-sun  { display: none; }
+:root[data-theme="light"] .theme-toggle .i-sun  { display: block; }
+:root[data-theme="light"] .theme-toggle .i-moon { display: none; }
+
+/* ── TRILHOS LATERAIS ──────────────────────────────────────
+   Fixos nas goteiras, fora do container de 1100px. Só aparecem
+   quando há largura sobrando — abaixo de 1280px somem, e o
+   conteúdo deles já existe na nav, no hero e no contato. */
+
+.rail {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 90;
+}
+.rail ul { list-style: none; margin: 0; padding: 0; }
+
+.rail-social { left: clamp(.75rem, calc(50vw - 638px), 3rem); }
+.rail-social ul {
+  display: grid;
+  gap: .15rem;
+  justify-items: center;
+}
+/* fio vertical acima e abaixo do grupo (ref. Dribbble back-end) */
+.rail-social ul::before,
+.rail-social ul::after {
+  content: "";
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(var(--line), transparent);
+}
+.rail-social ul::after { background: linear-gradient(transparent, var(--line)); }
+.rail-social a {
+  display: grid;
+  place-items: center;
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  color: #7C8798;
+  transition: color .2s, background .2s, transform .2s var(--ease);
+}
+.rail-social a:hover { color: var(--accent); background: var(--surface); transform: translateY(-2px); }
+.rail-social .ico-brand,
+.rail-social .ico-stroke { width: 17px; height: 17px; }
+
+@media (max-width: 1279px) { .rail { display: none; } }
+
+/* ── HERO ──────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  padding-block: clamp(3rem, 9vw, 6rem) clamp(3rem, 8vw, 5rem);
+  overflow: hidden;
+}
+/* brilho ambiente, puramente decorativo */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -40% 20% auto -10%;
+  height: 520px;
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, .13), transparent 62%);
+  pointer-events: none;
+}
+/* Texto à esquerda, retrato à direita; o terminal atravessa as duas
+   colunas. Vira coluna única abaixo de 880px. */
+/* Grade animada de fundo (ref. ShapeGrid, componente React trazido pelo
+   Vinícius) — só no hero, por pedido dele; ver docs/REFERENCIAS.md.
+   z-index 0 fica atrás do brilho (::before) e do conteúdo (.hero-in). */
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  /* <canvas> é elemento substituído: 'inset: 0' sozinho não o estica
+     como faria com uma <div> — sem isto, ele fica do tamanho intrínseco
+     padrão (300×150) e o restante do CSS não tem efeito nenhum. */
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+/* A grade anima sempre, mesmo com prefers-reduced-motion — exceção
+   deliberada, igual à prévia de vídeo no hover. Ver docs/DESIGN.md
+   (seção Movimento) para o raciocínio e o histórico de tentativas. */
+
+/* pointer-events:none deixa o mouse "atravessar" todo o conteúdo do
+   hero até a grade animada por baixo (.hero-grid) — sem isto, o hover
+   da grade nunca acende nenhuma célula onde há texto, foto ou
+   coordenadas, porque esse conteúdo fica numa camada acima (precisa
+   disso pra ser clicável/selecionável) e intercepta o mouse antes dele
+   chegar ao <canvas>. `pointer-events` é herdado, então marcar só
+   `.hero-in` não bastava — o `.hero-text` interno também precisava,
+   até essa regra subir para o container comum aos dois.
+   O que precisa continuar clicável/digitável recebe o pointer-events
+   de volta: os dois CTAs e o terminal inteiro (campo, botões, links
+   das respostas). */
+.hero-in {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: center;
+  pointer-events: none;
+}
+.hero-in .cta,
+.hero-in .term { pointer-events: auto; }
+.hero-text { min-width: 0; }
+
+.hero-foto {
+  position: relative;
+  margin: 0;
+}
+
+.foto-ph {
+  font-family: var(--mono);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: 1.2rem;
+  text-align: center;
+  font-size: .78rem;
+  line-height: 1.5;
+  color: var(--muted);
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 10px, transparent 10px 20px),
+    var(--bg-alt);
+}
+.foto-ph b {
+  display: grid;
+  place-items: center;
+  width: 62px; height: 62px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.foto-ph code { font-size: .72rem; background: none; border: 0; padding: 0; color: var(--muted); }
+
+.hero h1 {
+  margin: 0 0 1.4rem;
+  font-size: clamp(2.35rem, 6.6vw, 4.4rem);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+  font-weight: 800;
+  max-width: 15ch;
+  text-wrap: balance;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.lede {
+  margin: 0 0 2.3rem;
+  max-width: 66ch;
+  font-size: clamp(1rem, 2.1vw, 1.16rem);
+  color: var(--text-2);
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+}
+.cta-final { margin-top: 2rem; }
+
+/* ── TERMINAL ──────────────────────────────────────────────
+   O momento autoral do site. A saída inicial está escrita no HTML,
+   então os números aparecem sem JavaScript; o script só acrescenta
+   a capacidade de digitar novos comandos. */
+
+.term {
+  grid-column: 1 / -1;
+  /* item de grid não encolhe abaixo do conteúdo sem isto — e o <pre> do
+     ASCII forçaria a página inteira a ficar mais larga que a tela */
+  min-width: 0;
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--term-bg);
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,.4), 0 24px 56px -18px rgba(0,0,0,.75);
+  transition: border-color .25s;
+}
+.term:focus-within { border-color: #3A4759; }
+
+.term-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding-inline: .85rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.term-title {
+  font-family: var(--mono);
+  font-size: .7rem;
+  color: var(--muted);
+  letter-spacing: -.01em;
+}
+.term-dots {
+  position: absolute;
+  top: 50%; right: .85rem;
+  transform: translateY(-50%);
+  width: 34px; height: 8px;
+  background-image: radial-gradient(circle 4px, var(--line) 99%, transparent 0);
+  background-size: 13px 8px;
+  background-repeat: repeat-x;
+}
+
+.term-body {
+  min-width: 0;
+  padding: clamp(.9rem, 2.4vw, 1.4rem);
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.6;
+}
+.term-help, .term-log, .term-form { min-width: 0; }
+
+.term-ascii {
+  margin: 0 0 1.1rem;
+  font-size: clamp(.4rem, 1.35vw, .68rem);
+  line-height: 1.02;
+  color: var(--accent);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* caixa de comandos com rótulo sobre a borda (ref. zalt.me) */
+.term-help {
+  position: relative;
+  margin: 0 0 1.2rem;
+  padding: .9rem 1rem .8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.term-help-t {
+  position: absolute;
+  top: 0;
+  left: .8rem;
+  transform: translateY(-50%);
+  padding-inline: .4rem;
+  background: var(--term-bg);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* 280px dá exatamente 3 colunas na largura do terminal: os 6 comandos
+   fecham 3x2, sem órfão na última linha */
+.term-help dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: .1rem 1.4rem;
+  margin: 0;
+}
+.term-help dl > div { display: flex; gap: .6rem; }
+.term-help dt { color: var(--accent); font-weight: 500; min-width: 4.6rem; }
+.term-help dd { margin: 0; color: var(--muted); }
+
+/* o terminal é um aparelho de tamanho fixo: o log rola por dentro em
+   vez de empurrar a página a cada comando */
+.term-log {
+  margin-bottom: .9rem;
+  max-height: min(22rem, 45vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.term-log > p,
+.term-out > p { margin: 0 0 .15rem; }
+.term-prompt { color: var(--live); user-select: none; }
+.term-cmd { color: var(--text); word-break: break-word; }
+.term-out { margin: .1rem 0 .9rem; color: var(--text-2); }
+.term-out:last-child { margin-bottom: 0; }
+.term-dim { color: var(--muted); }
+.term-err { color: var(--wip); }
+.term-out code {
+  background: var(--surface-2);
+  border-color: #2A3140;
+  color: var(--text);
+}
+.term-out a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* 2 colunas na largura do terminal: os 4 números do whoami fecham 2x2 e
+   os rótulos não quebram em duas linhas */
+.term-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: .1rem 1.4rem;
+  list-style: none;
+  margin: .45rem 0;
+  padding: 0;
+}
+.term-kv li { color: var(--muted); }
+.term-kv b {
+  display: inline-block;
+  min-width: 4.4rem;
+  color: var(--accent);
+  font-size: 1.02rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+/* lista de comandos: rótulos mais longos precisam de coluna maior */
+.term-kv-wide b { min-width: 6rem; font-size: .95rem; }
+
+.term-form {
+  display: flex;
+  align-items: baseline;
+  gap: .55rem;
+  border-top: 1px solid transparent;
+  padding-top: .1rem;
+}
+.term-in {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  caret-color: transparent;   /* o caret desenhado abaixo é o indicador */
+  outline: none;
+}
+/* bloco piscante no fim da linha — só enquanto o campo tem foco */
+.term-caret {
+  flex: none;
+  width: .55em;
+  height: 1.05em;
+  align-self: center;
+  margin-left: -.35rem;
+  background: var(--accent);
+  opacity: 0;
+}
+.term-form:focus-within .term-caret { animation: caret 1.05s steps(1) infinite; }
+@keyframes caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+.term-hint {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Tecla desenhada (ref. chanhdai's Kbd) — usada na dica do comando
+   `ajuda` para representar Tab/↑/↓ como tecla, não como texto solto. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.5em;
+  padding-inline: .4em;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-2);
+  box-shadow: inset 0 -1.5px 0 var(--line);
+  font-family: var(--mono);
+  font-size: .82em;
+  line-height: 1;
+  color: var(--text-2);
+}
+
+/* ── SEÇÕES ────────────────────────────────────────────── */
+
+.sec { padding-block: clamp(3.5rem, 9vw, 6.5rem); border-top: 1px solid var(--line); }
+.sec-alt { background: var(--bg-alt); border-bottom: 1px solid var(--line); }
+
+.sec h2 {
+  margin: 0 0 1.4rem;
+  padding-bottom: .9rem;
+  font-size: clamp(1.55rem, 4vw, 2.3rem);
+  letter-spacing: -.03em;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: .8rem;
+  flex-wrap: wrap;
+}
+/* "// 01" — o prefixo vem do SectionTitle.vue do joaofortes.dev.
+   O número é o mesmo do índice lateral: é orientação, não enfeite. */
+.num {
+  font-family: var(--mono);
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.num::before { content: "// "; opacity: .55; }
+
+/* Copiar link da seção (ref. chanhdai's PanelTitleCopy) — ícone que troca
+   para um check ao copiar. Fica discreto por padrão e não some no touch,
+   já que ali não existe hover para revelar. */
+.h2-copy {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  opacity: .55;
+  cursor: pointer;
+  transition: opacity .2s, color .2s, border-color .2s, background .2s;
+}
+.h2-copy:hover,
+.h2-copy:focus-visible { opacity: 1; color: var(--accent); border-color: var(--line); background: var(--surface); }
+.h2-copy .ico-stroke { width: 15px; height: 15px; }
+.h2-copy .i-check { display: none; }
+.h2-copy.copiado { opacity: 1; color: var(--live); }
+.h2-copy.copiado .i-link { display: none; }
+.h2-copy.copiado .i-check { display: block; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 2.4rem;
+  transform: translate(-50%, .6rem);
+  padding: .7rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg, var(--muted));
+  font-size: .9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+  z-index: 999;
+}
+.toast.mostrar {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.sec-lede {
+  margin: 0 0 2.6rem;
+  max-width: 66ch;
+  color: var(--text-2);
+}
+.sec h2 + .about,
+.sec h2 + .grid,
+.sec h2 + .timeline { margin-top: 2.6rem; }
+
+/* ── ANIMAÇÕES CONTROLADAS PELO SCROLL (base genérica) ─────
+   Ref. ScrollVideo.vue (joaofortes.dev) — ver docs/REFERENCIAS.md.
+   Regras comuns a toda instância de `.scroll-video-track`; cada uso
+   (a lata em Sobre mim, o halter em Stack, os próximos que vierem)
+   vive dentro da própria seção (`position: relative` nela) e ajusta o
+   alinhamento do pin num seletor mais específico — ver os blocos
+   "LATA" e "HALTER" abaixo.
+   `.scroll-video-pin` gruda no topo via `position: sticky` enquanto a
+   pista passa por baixo dele, e solta sozinho quando ela acaba — é o
+   `sticky` nativo que resolve "trava a tela até acabar, depois volta a
+   rolar normal", sem JS nenhum bloqueando o scroll do navegador (não é
+   scroll-jacking: a barra de rolagem e a roda do mouse continuam
+   funcionando o tempo todo, só o que muda é o que está fixo na tela).
+   O JS só faz uma coisa: ler o progresso do scroll dentro da pista e
+   desenhar o quadro correspondente no <canvas> — ver script.js. Sem
+   moldura/fundo: os quadros já vêm com fundo removido (alfa real). */
+.scroll-video-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  pointer-events: none;   /* decorativo — não intercepta clique/seleção */
+}
+.scroll-video-pin {
+  position: sticky;
+  top: calc(64px + 2rem);
+  height: min(58vh, 460px);
+  width: clamp(180px, 20vw, 300px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scroll-video {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  /* Sem gutter sobrando pra travar a tela por 2+ telas num celular —
+     a animação aparece embutida, girando sozinha em loop quando
+     visível, em vez de prender o scroll (ver o ramo `if (isTelaEstreita)`
+     em script.js). */
+  .scroll-video-track { position: static; display: block; }
+  .scroll-video-pin {
+    position: static;
+    height: min(46vh, 320px);
+    width: min(70vw, 320px);
+    margin: 0 auto 2rem;
+    pointer-events: auto;
+  }
+}
+
+/* ── LATA CONTROLADA PELO SCROLL (Sobre mim) ───────────────
+   Propositalmente **fora** do `.wrap` — `.scroll-video-track` é irmão
+   dele, direto dentro de `#sobre` (que precisa de `position: relative`
+   pra isso funcionar). Com `inset: 0`, a pista cobre exatamente a altura
+   de `#sobre` inteira: começa no topo da seção Sobre mim e termina no
+   fim dela, ou seja, exatamente onde a seção Stack começa — não é uma
+   altura chutada em vh, é a altura real da seção. Nada de v/h mágico
+   pra reajustar se o texto crescer ou encolher.
+   O pin fica alinhado à direita da pista (`justify-content: flex-end`)
+   — de propósito sangra pra fora do `.wrap` e ocupa a goteira direita,
+   em vez de ficar preso dentro do bloco de texto. A distância da borda
+   (`calc(50vw - 638px)`) foi calibrada quando ainda existia um índice
+   lateral (`.rail-index`, removido em 2026-09-25) nessa goteira — o
+   valor continua valendo como posição de goteira, só não "invade" mais
+   nada específico. */
+/* A moto em #trajetoria usa o mesmo alinhamento (goteira direita) —
+   mesma regra de base, mas mais encostada no canto e um pouco mais
+   estreita que a lata: a moto explodida é uma composição bem mais
+   larga (peças se espalham pros dois lados) e ficava por cima do
+   texto da timeline em larguras de tela intermediárias. */
+#sobre, #trajetoria { position: relative; }
+#sobre .scroll-video-track,
+#trajetoria .scroll-video-track {
+  z-index: 95;
+  justify-content: flex-end;
+}
+#sobre .scroll-video-pin {
+  margin-right: clamp(.75rem, calc(50vw - 638px), 3rem);  /* goteira direita */
+}
+#trajetoria .scroll-video-pin {
+  width: clamp(150px, 15vw, 240px);
+  margin-right: clamp(0px, calc(50vw - 700px), 1.25rem);  /* mais encostada no canto que a lata */
+}
+
+/* ── HALTER CONTROLADO PELO SCROLL (Stack tecnológica) ─────
+   Segunda animação do mesmo tipo (das duas que o Vinícius avisou que
+   viriam depois da lata) — ao lado de `.rail-social`, na goteira
+   esquerda. Mesma pista da lata (`.scroll-video-track` irmã de
+   `.wrap.panel`, `position:absolute; inset:0` cobrindo a altura real
+   de `#stack`), MAS o pin **não é `position: sticky` aqui** — é a
+   diferença chave em relação à lata/moto.
+
+   A lata "prende a tela": o pin some do fluxo normal e fica fixo na
+   VIEWPORT enquanto a página rola por baixo — ótimo pra uma seção
+   grande, mas isso faz o pin se soltar do título assim que o `sticky`
+   engata (o `h2`, que não é sticky, continua subindo; o pin, grudado
+   na viewport, fica pra trás — “sai do lado do título”, exatamente o
+   que o Vinícius não queria). O halter faz o oposto: o pin fica
+   `position: static`, um item de flex comum dentro da pista
+   (`position: absolute`, mas ancorada num ponto fixo do DOCUMENTO, não
+   da viewport). Sem sticky, o pin rola no mesmo ritmo que o `h2` — os
+   dois avançam juntos, sempre à mesma distância um do outro, porque
+   nenhum dos dois está preso à tela. O scroll continua controlando o
+   quadro exibido (mesma função `ligarScrub`/`desenhar` em script.js,
+   que só lê a posição da pista — indiferente a `sticky` ou `static`
+   no pin) — só a caixa em si deixou de "prender a tela" pra rolar
+   junto com o título. Ver docs/REFERENCIAS.md pelo raciocínio completo. */
+#stack { position: relative; }
+#stack .scroll-video-track {
+  z-index: 95;              /* acima de .rail-social (90) — pode passar por cima dela */
+  justify-content: flex-start;
+}
+#stack .scroll-video-pin {
+  position: static;         /* não gruda na viewport — ver comentário acima */
+  margin-left: clamp(.75rem, calc(50vw - 638px), 3rem);  /* mesma goteira de .rail-social */
+  /* Como o pin não é mais `sticky` (ver comentário acima), crescer a
+     altura não corre mais o risco de "sair do lado do título" — ele
+     rola junto com o `h2` de qualquer forma. O teto aqui é onde a
+     faixa de logos (`.logos`, sem padding-left de proteção) começa:
+     medido em ~270px do topo da seção; 240px ocupa quase todo esse
+     vão (título + texto-guia) sem chegar a tocar os ícones. */
+  height: min(22vh, 240px);
+  width: clamp(200px, 22vw, 320px);
+}
+/* O halter fica na mesma faixa horizontal do título e do texto-guia —
+   sem esse respiro, o pin cobre "02 Stack tecnológica" e a linha
+   logo abaixo em boa parte das larguras de tela. Só esses dois: o
+   resto do conteúdo de Stack (logos, categorias) já começa mais para
+   baixo, fora do alcance vertical do pin. */
+#stack h2,
+#stack .sec-lede {
+  padding-left: clamp(0px, 16vw, 190px);
+}
+
+/* ── CARDS / GRIDS ─────────────────────────────────────── */
+
+.grid { display: grid; gap: 1.1rem; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.5rem;
+}
+.card h3 {
+  margin: 0 0 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.about {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1.8rem;
+  align-items: start;
+}
+.about p { margin: 0 0 1.1rem; color: var(--text-2); }
+.about p:last-child { margin-bottom: 0; }
+
+.facts { list-style: none; margin: 0; padding: 0; }
+.facts li {
+  display: flex;
+  flex-direction: column;
+  gap: .12rem;
+  padding: .75rem 0;
+  border-top: 1px solid var(--line);
+}
+.facts li:first-child { border-top: 0; padding-top: 0; }
+.facts strong { font-family: var(--mono); font-size: .8rem; color: var(--accent); font-weight: 600; }
+.facts span { font-size: .92rem; color: var(--muted); }
+.certs strong { color: var(--text); font-size: .93rem; }
+.certs span { font-size: .84rem; }
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tags li {
+  font-family: var(--mono);
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .3rem .65rem;
+}
+.tags-stack { margin: 1.3rem 0 0; }
+.tags-stack li { color: var(--accent); border-color: rgba(56,189,248,.26); background: rgba(56,189,248,.07); }
+
+/* ── FAIXA DE LOGOS (ref. zalt.me / Dribbble back-end) ────
+   Marcas oficiais, mas monocromáticas: o ciano continua sendo a
+   única cor de identidade do site. */
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+  list-style: none;
+  margin: 0 0 2.6rem;
+  padding: 1.1rem 0;
+  border-block: 1px solid var(--line);
+}
+.logos li {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .7rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: var(--muted);
+  cursor: default;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.logos li:hover { color: var(--text); border-color: var(--line); background: var(--surface); }
+.logos .ico-brand { color: #757F92; transition: color .2s; }
+.logos li:hover .ico-brand { color: var(--accent); }
+
+/* ── PROJETOS ──────────────────────────────────────────── */
+
+.proj {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.6rem;
+}
+.proj h3 {
+  margin: .7rem 0 .2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.proj > p { color: var(--text-2); font-size: .94rem; margin: 0; }
+.proj-sub { color: var(--muted) !important; font-size: .9rem !important; margin-bottom: 1rem !important; }
+
+.proj-hero {
+  padding: clamp(1.6rem, 4vw, 2.6rem);
+  box-shadow: 0 2px 4px rgba(0,0,0,.35), 0 26px 56px -22px rgba(0,0,0,.7);
+  margin-bottom: 1.1rem;
+  background:
+    radial-gradient(900px 320px at 0% 0%, rgba(56,189,248,.08), transparent 65%),
+    var(--surface);
+  border-color: #2C3646;
+}
+.proj-hero h3 { font-size: clamp(1.6rem, 3.8vw, 2.15rem); }
+
+.badge {
+  font-family: var(--mono);
+  display: inline-block;
+  align-self: flex-start;   /* .proj é flex column — sem isto o badge estica */
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .28rem .6rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.badge-live { color: var(--live); border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.1); }
+.badge-wip  { color: var(--wip);  border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.1); }
+
+/* 2 colunas fixas: são 4 blocos, então fecham 2x2 sem sobrar órfão numa
+   terceira coluna. Vira coluna única no mobile. */
+.proj-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 2rem;
+  margin-top: 1.8rem;
+}
+.pbi h4 {
+  font-family: var(--mono);
+  margin: 0 0 .5rem;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pbi p { margin: 0; font-size: .93rem; color: var(--text-2); }
+
+.gal-title {
+  font-family: var(--mono);
+  margin: 2.2rem 0 .9rem;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* checklist do que está no ar (ref. zalt.me). O check é desenhado,
+   não um glifo — mesmo traço do resto do sistema de ícones. */
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: .3rem 1.8rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.checks li {
+  position: relative;
+  padding-left: 1.55rem;
+  font-size: .92rem;
+  color: var(--text-2);
+}
+.checks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .42em;
+  width: 15px; height: 15px;
+  background: no-repeat center / 15px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2334D399" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>');
+}
+
+/* ── GALERIA + PLACEHOLDERS ────────────────────────────── */
+
+.gallery { display: grid; gap: .7rem; }
+/* 280px dá 3 colunas na largura do wrap: 6 telas fecham 3x2 */
+.gallery-6 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+/* 420px força exatamente 2 colunas na largura do wrap: os 4 vídeos fecham
+   2x2 e cada um fica grande o bastante para se ler a interface. O
+   min(420px, 100%) é obrigatório: sem ele, minmax() trava a coluna em
+   420px mesmo em telas mais estreitas que isso e a grade estoura. */
+.gallery-v { grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); }
+/* margin-top auto empurra a galeria para a base: os três cards
+   secundários terminam alinhados mesmo com textos de tamanhos diferentes */
+.gallery-2 {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  margin-top: auto;
+  padding-top: 1.3rem;
+}
+
+/* Cada slot é uma janela de aplicação: barra de título com o nome do
+   módulo e três controles à direita. Ideia do RetroWindow.vue do
+   joaofortes.dev — aqui é literal, já que o conteúdo É uma captura de
+   aplicação. Ver docs/REFERENCIAS.md */
+.shot {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-width: 100%;
+  padding: 26px 0 0;          /* espaço da barra de título */
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-alt);
+  overflow: hidden;
+  cursor: pointer;
+  font-family: inherit;
+  container-type: inline-size;
+  transition: transform .2s var(--ease), border-color .2s;
+}
+.shot:hover { transform: translateY(-3px); border-color: var(--accent); }
+
+.shot::before {                /* nome do módulo */
+  content: attr(data-title);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding-inline: .6rem;
+  font-family: var(--mono);
+  font-size: .66rem;
+  letter-spacing: -.01em;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shot::after {                 /* três controles de janela */
+  content: "";
+  position: absolute;
+  top: 10px; right: .6rem;
+  width: 26px; height: 6px;
+  background-image: radial-gradient(circle 3px, var(--line) 99%, transparent 0);
+  background-size: 10px 6px;
+  background-repeat: repeat-x;
+}
+.shot:hover::before { color: var(--text); }
+
+/* A imagem só aparece depois de carregar de verdade (JS marca .ok).
+   Enquanto o arquivo não existir, o placeholder abaixo é o que se vê —
+   nunca um ícone de imagem quebrada. */
+.shot img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.shot img.ok { display: block; }
+.shot img.ok + .shot-ph { display: none; }
+
+/* vídeo segue exatamente a mesma mecânica do print */
+.shot video { display: none; width: 100%; height: 100%; object-fit: cover; }
+.shot video.ok { display: block; }
+.shot video.ok + .shot-ph { display: none; }
+
+/* botão de play: aparece só depois que o vídeo existe de verdade */
+.play { display: none; }
+video.ok ~ .play {
+  display: grid;
+  position: absolute;
+  inset: 26px 0 0;
+  place-items: center;
+  pointer-events: none;   /* o clique é do <button>, não daqui */
+  transition: opacity .25s;
+}
+/* enquanto o vídeo roda sozinho no hover, o botão sai da frente —
+   ele voltaria a fazer sentido só se o vídeo parasse */
+.shot-vid.tocando .play { opacity: 0; }
+.play::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: rgba(11, 14, 20, .7);
+  border: 1px solid rgba(230, 234, 242, .32);
+  transition: background .2s;
+}
+.play::after {          /* triângulo desenhado, mesmo sistema de ícones */
+  content: "";
+  grid-area: 1 / 1;
+  margin-left: 3px;
+  width: 20px; height: 20px;
+  background: no-repeat center / 20px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23E6EAF2"><path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.79-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14Z"/></svg>');
+}
+.shot-vid:hover .play::before { background: rgba(56, 189, 248, .92); }
+.shot-vid:hover .play::after {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2304121C"><path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.79-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14Z"/></svg>');
+}
+
+/* Legenda que sobe no hover — ref. Uiverse.io (Praashoo7), "CodePen Card",
+   adotado como "revelar mais informação" e não como atalho de tela cheia
+   (o Vinícius pediu explicitamente para não ter ícone de ampliar). O
+   texto é o mesmo `data-cap` que a legenda do lightbox já usa — nenhum
+   texto novo foi inventado, só reaproveitado num segundo lugar.
+   Mesmo gate que o .play: só aparece com mídia carregada de verdade. */
+.shot-info {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  padding: .7rem .75rem .6rem;
+  background: linear-gradient(to top, rgba(11,14,20,.94), rgba(11,14,20,.72) 65%, transparent);
+  color: #F2F5FA;
+  font-family: var(--mono);
+  font-size: .72rem;
+  line-height: 1.42;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity .22s, transform .22s var(--ease);
+}
+.shot:hover img.ok ~ .shot-info,
+.shot:hover video.ok ~ .shot-info,
+.shot:focus-visible img.ok ~ .shot-info,
+.shot:focus-visible video.ok ~ .shot-info {
+  opacity: 1;
+  transform: none;
+}
+
+/* vídeo é 16:9, não 16:10 como os prints */
+.shot-vid { aspect-ratio: 16 / 9; }
+/* exceção: o vídeo de RH mora na grade 16:10 de "Telas do sistema" — segue
+   a proporção dos irmãos (prints) pra não desalinhar a linha da grade */
+.gallery-6 .shot-vid { aspect-ratio: 16 / 10; }
+/* um slot de vídeo ocupa a linha inteira do card secundário */
+.shot-wide { grid-column: 1 / -1; }
+
+.shot-ph {
+  font-family: var(--mono);
+  position: absolute;
+  inset: 26px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  padding: 1rem;
+  text-align: center;
+  font-size: .76rem;
+  line-height: 1.4;
+  color: var(--muted);
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 10px, transparent 10px 20px),
+    var(--bg-alt);
+}
+.shot-ph b {
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text-2);
+  letter-spacing: -.01em;
+}
+.shot-ph i { font-style: normal; }
+/* marcador discreto de "print ainda não adicionado" */
+.shot-ph::before {
+  content: "";
+  width: 26px; height: 20px;
+  border: 1.5px solid #394354;
+  border-radius: 4px;
+  margin-bottom: .35rem;
+  background:
+    radial-gradient(circle at 32% 38%, #4B566B 2px, transparent 2.5px),
+    linear-gradient(to top right, transparent 45%, #4B566B 45%, #4B566B 56%, transparent 56%);
+}
+
+/* Em slot estreito não cabe ícone + título + legenda sem cortar texto.
+   A container query mede o próprio slot e deixa só o título. */
+@container (max-width: 240px) {
+  .shot-ph { gap: 0; padding: .5rem; }
+  .shot-ph::before { display: none; }
+  .shot-ph i { display: none; }
+  .shot-ph b { font-size: .78rem; }
+}
+
+/* ── TIMELINE ──────────────────────────────────────────── */
+
+.timeline { list-style: none; margin: 0 0 2.6rem; padding: 0; }
+.timeline > li {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 1.6rem;
+  padding: 0 0 2.2rem 0;
+  position: relative;
+}
+.timeline > li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: .55rem; bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+.timeline > li:last-child::before { bottom: auto; height: 0; }
+
+.tl-when {
+  font-family: var(--mono);
+  position: relative;
+  padding-left: 1.4rem;
+  font-size: .84rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  padding-top: .1rem;
+}
+.tl-when::before {
+  content: "";
+  position: absolute;
+  left: -4.5px; top: .5rem;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--bg-alt);
+}
+.tl-what h3 { margin: 0; font-size: 1.1rem; font-weight: 700; letter-spacing: -.015em; }
+.tl-what .org { margin: .2rem 0 .9rem; font-size: .89rem; color: var(--muted); }
+.tl-what ul { margin: 0; padding-left: 1.1rem; }
+.tl-what li { margin-bottom: .5rem; font-size: .92rem; color: var(--text-2); }
+
+.chip {
+  font-family: var(--mono);
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: .5rem;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: .15rem .45rem;
+}
+
+.edu { margin-top: 1rem; }
+
+/* ── CONTATO ───────────────────────────────────────────── */
+
+.contato { text-align: center; }
+.contato h2 { justify-content: center; }
+.contato .sec-lede { margin-inline: auto; }
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+  gap: .8rem;
+  text-align: left;
+}
+.ccard {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  min-height: 76px;
+  justify-content: center;
+  padding: 1.1rem 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  transition: transform .18s var(--ease), border-color .18s;
+}
+.ccard:hover { transform: translateY(-3px); border-color: var(--accent); }
+.ctag { font-family: var(--mono); font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+.ccard strong { font-size: .93rem; font-weight: 600; color: var(--text); word-break: break-word; }
+
+/* ── FOOTER ────────────────────────────────────────────── */
+
+.foot {
+  padding-block: 2.5rem;
+  border-top: 1px solid var(--line);
+  font-size: .87rem;
+}
+.foot p { margin: 0 0 .25rem; }
+.foot .muted { color: var(--muted); }
+
+/* ── LIGHTBOX ──────────────────────────────────────────── */
+
+#lb {
+  width: min(94vw, 1280px);
+  max-width: 94vw;
+  max-height: 92vh;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--text);
+  overflow: visible;
+}
+#lb::backdrop {
+  background: rgba(5, 7, 11, .84);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+/* No slot a miniatura é cortada para caber em 16:9 (object-fit: cover).
+   Aqui, ampliado, o vídeo aparece inteiro — por isso 'contain'. */
+#lb img,
+#lb video {
+  display: block;
+  width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--bg);
+}
+/* `#lb img`/`#lb video` (ID) tem mais especificidade que `[hidden]` sozinho
+   (seletor de atributo) — sem isto, o JS alternando `.hidden` no elemento
+   não escondia nada de verdade, e a mídia anterior ficava visível por cima
+   da nova. Precisa do próprio atributo na regra pra empatar em ID e vencer
+   por especificidade adicional. */
+#lb img[hidden],
+#lb video[hidden] {
+  display: none;
+}
+#lb p { font-family: var(--mono); margin: 0; padding: .95rem 1.2rem; font-size: .88rem; color: var(--muted); }
+
+.lb-close {
+  position: absolute;
+  top: -14px; right: -14px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.lb-close:hover { background: var(--accent); color: var(--on-accent); }
+
+/* ── ENTRADA AO ROLAR ──────────────────────────────────────
+   Discreta e escalonada. O terminal tem entrada própria, abaixo —
+   ele é o único momento com presença real de movimento. */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity .55s var(--ease), transform .55s var(--ease);
+  transition-delay: var(--d, 0ms);
+}
+.reveal.in { opacity: 1; transform: none; }
+
+/* entrada do terminal: sobe, assenta e sai de foco — o blur é o que
+   dá a sensação de aparelho ligando, e não de mais um card subindo */
+.term.reveal {
+  transform: translateY(26px) scale(.985);
+  filter: blur(7px);
+  transition: opacity .8s var(--ease), transform .8s var(--ease), filter .8s var(--ease);
+}
+.term.reveal.in { transform: none; filter: none; }
+
+/* as linhas do log entram em cascata depois que a janela assentou */
+.term.in .term-log > *,
+.term.in .term-out > * { animation: termline .5s var(--ease) both; }
+.term.in .term-log > :nth-child(1) { animation-delay: .34s; }
+.term.in .term-out > :nth-child(1) { animation-delay: .46s; }
+.term.in .term-out > :nth-child(2) { animation-delay: .56s; }
+.term.in .term-out > :nth-child(3) { animation-delay: .66s; }
+@keyframes termline {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+/* linhas criadas pelo JS ao rodar um comando */
+.term-new { animation: termline .35s var(--ease) both; }
+
+/* ── RESPONSIVO ────────────────────────────────────────── */
+
+/* retrato desce para cima do texto antes de espremer o h1 */
+@media (max-width: 880px) {
+  .hero-in { grid-template-columns: 1fr; gap: 2rem; }
+  .hero-foto { order: -1; width: min(210px, 52vw); }
+  .coords { display: none; }
+}
+
+@media (max-width: 720px) {
+  .panel { padding-inline: 20px; }
+  .proj-body { grid-template-columns: 1fr; gap: 1.3rem; }
+  .timeline > li { grid-template-columns: 1fr; gap: .7rem; padding-left: 1.4rem; }
+  .timeline > li::before { left: 0; }
+  .tl-when { padding-left: 0; }
+  .tl-when::before { left: -1.85rem; }
+  .nav-in { min-height: 56px; }
+  .nav-links { order: 3; width: 100%; justify-content: space-between; gap: 0; }
+  .nav-links a { padding: .72rem .4rem; font-size: .86rem; } /* mantém o alvo >= 44px */
+  .lb-close { top: 6px; right: 6px; }
+  .overview { grid-template-columns: 1fr; gap: .6rem; }
+  .overview::before { display: none; }
+  .stack { --col: auto; }
+  .stack::before { display: none; }
+  .stack-row { grid-template-columns: 1fr; }
+  .stack-row .tags { padding-left: 0; }
+  .rbtn { flex: 1 1 auto; }
+  .term-body { font-size: .76rem; }
+  .term-help dt { min-width: 4.2rem; }
+}
+
+/* ── MOVIMENTO REDUZIDO ────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal,
+  .term.reveal { opacity: 1; transform: none; filter: none; transition: none; }
+  .term.in .term-log > *,
+  .term.in .term-out > *,
+  .term-new { animation: none; }
+  .term-form:focus-within .term-caret { animation: none; opacity: 1; }
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTES DAS REFERÊNCIAS — ver docs/REFERENCIAS.md
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Panel (chanhdai) ──────────────────────────────────────
+   Bordas verticais nas laterais do container. Somadas às linhas
+   horizontais das seções, formam a coluna de papel técnico que
+   é a assinatura do chanhdai.com. */
+.panel {
+  border-inline: 1px solid var(--line);
+  padding-inline: clamp(1.2rem, 3vw, 2.2rem);
+}
+
+/* ── RetroButton (joaofortes) ──────────────────────────────
+   Mono, maiúsculas, borda fina, sem raio. A seta desliza no hover. */
+.rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.1rem;
+  min-height: 46px;
+  padding: .7rem 1rem;
+  border: 1px solid var(--text);
+  color: var(--text);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1;
+  transition: color .16s, background .16s, border-color .16s, transform .16s var(--ease);
+}
+.rbtn:hover { background: var(--text); color: var(--bg); transform: translate(3px, -2px); }
+.rbtn:active { transform: scale(.97); }
+.rbtn-primary { border-color: var(--accent); color: var(--accent); }
+.rbtn-primary:hover { background: var(--accent); color: var(--on-accent); }
+.rbtn .ico-stroke { width: 1.15em; height: 1.15em; }
+.rbtn-arrow { transition: transform .16s var(--ease); }
+.rbtn:hover .rbtn-arrow { transform: translateX(.28rem); }
+
+/* ── FlipSentences (chanhdai) ──────────────────────────────
+   Uma frase por vez, em mono. O JS troca a classe .on. */
+.flip {
+  position: relative;
+  height: 1.6em;
+  margin: 0 0 1.2rem;
+  font-family: var(--mono);
+  font-size: .9rem;
+  color: var(--muted);
+  overflow: hidden;
+}
+.flip span {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(60%);
+  transition: opacity .45s, transform .45s;
+}
+.flip span.on { opacity: 1; transform: none; }
+.flip span.off { opacity: 0; transform: translateY(-60%); }
+
+/* ── RetroWindow na foto (joaofortes) + Fig. 1 (chanhdai) ── */
+.hero-foto {
+  width: clamp(230px, 24vw, 300px);
+}
+.rwin {
+  border: 1px solid #C8C8C8;
+  background: #050505;
+  box-shadow: 7px 8px 0 rgba(56, 189, 248, .18), 14px 15px 25px rgba(0, 0, 0, .45);
+}
+.rwin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2rem;
+  padding: .24rem .3rem .24rem .7rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--mono);
+  font-size: .72rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.rwin-x {
+  display: grid;
+  place-items: center;
+  width: 1.35rem; height: 1.35rem;
+  border: 1px solid #050505;
+  background: #BDBDBD;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #444;
+  color: #050505;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.rwin-body { position: relative; aspect-ratio: 4 / 5; overflow: hidden; }
+.rwin-body img { display: none; width: 100%; height: 100%; object-fit: cover; }
+.rwin-body img.ok { display: block; }
+.rwin-body img.ok + .foto-ph { display: none; }
+.fig {
+  margin: .5rem 0 0;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: .74rem;
+  letter-spacing: .04em;
+  color: color-mix(in srgb, var(--muted) 55%, var(--bg));
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* ── Coordenadas (joaofortes) ──────────────────────────────── */
+.coords {
+  position: absolute;
+  top: -3.4rem;
+  right: clamp(1.2rem, 3vw, 2.2rem);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .3rem .7rem;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: .7rem;
+  line-height: 1.35;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.coords strong { grid-column: 2; font-weight: 500; color: var(--text); letter-spacing: .04em; }
+.coords-globe {
+  grid-row: 1 / 3;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(var(--line), var(--line)) center / 100% 1px no-repeat,
+    linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat,
+    radial-gradient(circle at center, transparent 55%, var(--line) 56%, var(--line) 57%, transparent 58%);
+}
+
+/* ── Overview (chanhdai) ───────────────────────────────────
+   Grid de ícone + texto em mono, com divisor tracejado no meio. */
+.overview {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .65rem 2rem;
+  padding: 1.2rem 0;
+  align-self: start;
+}
+.overview::before {           /* divisor vertical tracejado entre as colunas */
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: calc(50% - 1rem);
+  width: 1px;
+  background-image: linear-gradient(to bottom, var(--line) 4px, transparent 2px);
+  background-size: 1px 6px;
+  pointer-events: none;
+}
+.ov {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: .8rem;
+  line-height: 1.4;
+}
+.ov p { margin: 0; overflow-wrap: anywhere; }
+/* padding + margin negativo: área de toque >= 44px sem alterar o layout */
+.ov a { color: var(--text); display: inline-block; padding-block: .85rem; margin-block: -.85rem; }
+.ov-at { color: var(--muted); }
+
+/* IconTile: chip quadrado com borda dupla (ring) — assinatura do chanhdai */
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid color-mix(in srgb, var(--muted) 15%, transparent);
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px var(--line);
+  color: var(--muted);
+}
+.tile svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Stack em tabela (chanhdai tech-stack) ─────────────────
+   [ 01 Categoria | badges ] com divisor tracejado na coluna. */
+.stack { position: relative; --col: 12rem; }
+.stack::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: var(--col);
+  width: 1px;
+  background-image: linear-gradient(to bottom, var(--line) 4px, transparent 2px);
+  background-size: 1px 6px;
+  pointer-events: none;
+}
+.stack-row {
+  display: grid;
+  grid-template-columns: var(--col) 1fr;
+  align-items: start;
+  gap: .5rem 0;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.stack-row:last-child { border-bottom: 0; }
+.stack-cat { font-size: .92rem; font-weight: 500; line-height: 24px; }
+.stack-n { font-family: var(--mono); color: var(--muted); margin-right: .5rem; user-select: none; }
+.stack-row .tags { padding-left: 1rem; }
+.stack-row .tags li { border-radius: 999px; padding: .25rem .7rem; height: 24px; display: inline-flex; align-items: center; }
+
+/* ── Ping do emprego atual (chanhdai experience-item) ──────── */
+.ping {
+  position: relative;
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-left: .35rem;
+  vertical-align: middle;
+}
+.status .ping { margin-left: 0; }
+.ping::before, .ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--live);
+}
+.ping::before { animation: ping 1.8s cubic-bezier(0, 0, .2, 1) infinite; opacity: .5; }
+.ping::after { inset: 2px; }
+@keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+
+/* ── Disponibilidade (joaofortes AvailabilitySection) ─────── */
+.avail {
+  display: inline-grid;
+  gap: .25rem;
+  margin: 0 auto 2rem;
+  padding: 1rem 1.3rem;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: .8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: left;
+}
+.avail p { margin: 0; }
+.avail-status { color: var(--text); display: flex; align-items: center; gap: .55rem; }
+.avail-status span {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, .18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping::before { animation: none; }
+  .flip span { transition: none; }
+}
